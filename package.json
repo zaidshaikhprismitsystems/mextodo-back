@@ -4,8 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "tsc && node dist/app.js",
-    "dev": "nodemon src/app.ts"
+    "start": "tsc && node --max-old-space-size=2048 dist/app.js",
+    "dev": "nodemon src/app.ts",
+    "migrate": "prisma migrate deploy"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
