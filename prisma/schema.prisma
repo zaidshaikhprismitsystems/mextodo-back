@@ -1,0 +1,632 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum userRole {
+  customer
+  seller
+  admin
+}
+
+enum vendorStatus {
+  pending
+  approved
+  suspended
+  disabled
+  rejected
+}
+
+enum addressType {
+  home
+  office
+  other
+}
+
+model users {
+  id             Int   @id @default(autoincrement())
+  username       String   @unique
+  email          String   @unique
+  password       String
+  firstName      String?
+  lastName       String?
+  role           userRole @default(customer)
+  stripeCustomerId String?  @unique
+  transactionId  String?       @default("")
+
+  language  String  @default("es")
+  currency  String  @default("USD")
+
+  isVerified     Boolean  @default(false)
+  isDeleted      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+
+  vendor_profile  vendor_profiles? 
+  addresses      addresses[]
+  orders         orders[]
+  tickets        tickets[]
+  replies   reply[]
+  review         reviews[]
+  transaction    transactions[]
+  favorite_product favorite_products[]
+  password_reset_token password_reset_tokens[]
+  verifyuser_tokens verifyuser_tokens[]
+  assignedTickets tickets[]     @relation("TicketAssignees")
+}
+
+model password_reset_tokens{
+  id             Int   @id @default(autoincrement())
+  userId     Int
+  users       users        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String
+  expiresAt  DateTime
+}
+
+model verifyuser_tokens{
+  id             Int   @id @default(autoincrement())
+  userId     Int
+  users       users        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String
+  expiresAt  DateTime
+}
+
+model countries {
+  id             Int   @id @default(autoincrement())
+  name      String  @unique
+  isoCode   String  @unique
+  createdAt DateTime @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+
+  states    states[]
+  address   addresses[]
+  vendor_profile vendor_profiles[]
+}
+
+model states {
+  id             Int   @id @default(autoincrement())
+  name       String
+  isoCode     String?
+  countryId  Int
+  countries   countries @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+
+  address    addresses[]
+  cities       cities[]
+  vendor_profile vendor_profiles[]
+
+  products products[]
+}
+
+model cities {
+  id             Int   @id @default(autoincrement())
+  name       String
+  stateId    Int
+  state      states   @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+
+  address    addresses[]
+  vendor_profile vendor_profiles[]
+
+  products products[]
+}
+
+model addresses {
+  id             Int   @id @default(autoincrement())
+  userId     Int
+  users       users        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  address    String      
+  zipCode    String
+
+  cityId     Int
+  cities      cities       @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  stateId    Int
+  state      states       @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  countryId  Int
+  countries   countries    @relation(fields: [countryId], references: [id], onDelete: Cascade)
+
+  district          String @default("")
+
+  type       addressType @default(home)
+  label       String?
+  
+  receiverName  String?   
+  receiverPhone String?
+
+  billingOrders  orders[] @relation("BillingAddress")
+  shippingOrders orders[] @relation("ShippingAddress")
+
+  isDefault  Boolean     @default(false)
+ 
+  createdAt  DateTime    @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+}
+
+model vendor_profiles {
+  id             Int   @id @default(autoincrement())
+  userId           Int      @unique
+  users             users?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vendorFullName   String
+  storeName        String
+  storeLocation    String
+  curp             String
+  whatsappNumber   String?     
+  email            String?     @unique
+  
+  // address          String   
+  postalCode       String
+
+  cityId           Int
+  cities            cities    @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  stateId          Int
+  state            states     @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  countryId        Int
+  countries         countries  @relation(fields: [countryId], references: [id], onDelete: Cascade)
+
+  district          String @default("")
+
+  sellDescription  String
+
+  stripeAccountId  String?     @unique
+  stripeVendorVerified  Boolean  @default(false)
+  approved              Boolean  @default(false)
+  status                vendorStatus    @default(pending)
+  balance               Float    @default(0.0)
+  availableBalance      Float    @default(0.0)
+  createdAt            DateTime @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+
+  products      products[]
+  orders        orders[]
+  order_item     order_items[]
+  transactions  transactions[]
+  payment       payments[]
+
+  VendorCoupon VendorCoupon[]
+}
+
+enum transactionStatus {
+  pending
+  completed
+  rejected
+}
+
+enum productStatus {
+  pending
+  approved
+  rejected
+  disabled
+}
+
+enum categoryStatus {
+  enabled
+  disabled
+}
+
+enum attributeStatus {
+  enabled
+  disabled
+}
+
+model categories {
+  id             Int   @id @default(autoincrement())
+  nameEn     String
+  nameSp     String
+  descriptionEn     String @default("")
+  descriptionSp     String @default("")
+  image            String @default("")
+  status           categoryStatus @default(enabled)
+
+  createdAt  DateTime     @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+  
+  products   products[]
+  attributes category_attributes[]
+}
+
+model attributes {
+  id             Int   @id @default(autoincrement())
+  nameEn     String
+  nameSp     String
+  status      attributeStatus @default(enabled)
+  createdAt  DateTime     @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+
+  categoriesAttribute category_attributes[] 
+}
+
+model category_attributes {
+  id             Int   @id @default(autoincrement())
+  categoryId  Int
+  attributeId Int
+  createdAt      DateTime       @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+
+  category    categories   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  attribute   attributes  @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, attributeId]) 
+}
+
+model products {
+  id            Int   @id @default(autoincrement())
+  vendorId      Int
+  vendor        vendor_profiles @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  categoryId    Int
+  category      categories      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  titleEn       String
+  titleSp       String
+  descriptionEn String
+  descriptionSp String
+  attributes    Json
+  featuredImage String @default("")
+  video         String @default("")
+  images        String[]
+  price         Float
+  discountPrice Float?
+  content       String @default("")
+  packType      String @default("")
+  boxQuantity   Int @default(0)
+
+  whatsappNumber String @default("")
+
+  digitalProduct String?
+  digitalProductType String?
+
+  stateId          Int? 
+  state            states?     @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  cityId           Int? 
+  cities           cities?    @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  rentOrSale       String?    @default("")
+  
+  stock         Int     @default(0)
+  status        productStatus @default(pending)
+  createdAt     DateTime      @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+
+  order_items    order_items[]
+  reviews       reviews[]
+  favorite_product favorite_products[]
+
+  VendorCoupon VendorCoupon[]
+}
+
+model favorite_products {
+  id             Int   @id @default(autoincrement())
+  userId     Int
+  users       users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId  Int
+  product    products @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+}
+
+model reviews {
+  id             Int   @id @default(autoincrement())
+  productId   Int
+  product     products  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId      Int
+  users        users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating      Int
+  comment     String?  
+  createdAt   DateTime @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+  @@unique([productId, userId]) 
+}
+
+model orders {
+  id             Int   @id @default(autoincrement())
+  customerId     Int
+  customer       users           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  vendorId       Int? 
+  vendor vendor_profiles? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+
+  totalItems     Int            @default(0)  
+  totalPrice     Float          @default(0.0)
+  discountAmount Float          @default(0.0)
+  status         orderStatus    @default(pending)
+  shippingStatus shippingStatus @default(pending)
+  trackingNumber String?
+  trackUrl       String?
+  shipmentId     Int?
+  label          String?
+  carrier        String?
+  service        String?
+  totalShipingPrice Float?
+  createdAt      DateTime       @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+
+  order_items     order_items[]
+  payment        payments[]
+
+  billingAddressId Int?
+  shippingAddressId Int?
+  billingAddress    addresses? @relation("BillingAddress", fields: [billingAddressId], references: [id], onDelete: Cascade)
+  shippingAddress   addresses? @relation("ShippingAddress", fields: [shippingAddressId], references: [id], onDelete: Cascade)
+}
+
+model order_items {
+  id          Int   @id @default(autoincrement())
+  orderId     Int
+  order       orders       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   Int
+  product     products     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  vendorId    Int
+  vendor      vendor_profiles @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  quantity    Int          @default(1)
+  price       Float        
+  discount    Float?       
+  total       Float        
+  createdAt   DateTime     @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+}
+
+model payments {
+  id             Int   @id @default(autoincrement())
+  orderId    Int
+  order      orders    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  stripeId   String
+  amount     Float
+  platformFee Float   @default(0.0)
+  paymentMethod  String?       @default("")
+  vendorId   Int?
+  vendor     vendor_profiles? @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  status     paymentStatus
+  createdAt  DateTime @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+}
+
+enum orderStatus {
+  pending
+  completed
+  canceled
+  returned
+  processing
+  shipped
+  out_for_delivery
+  delivered
+  refund_requested
+  refunded
+}
+
+enum shippingStatus {
+  pending
+  shipped
+  delivered
+  returned
+}
+
+enum ticketStatus {
+  pending
+  open
+  inProgress
+  closed
+}
+
+enum ticketCategory {
+  orderIssues
+  paymentIssues
+  productIssues
+  shippingIssues
+  returnsRefunds
+  accountIssues
+  technicalSupport
+  generalInquiry
+  vendorSupport
+}
+
+enum ticketPriority {
+  low
+  medium
+  high
+}
+
+model tickets {
+  id             Int            @id @default(autoincrement())
+  userId         Int
+  users          users          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title          String
+  description    String
+  status         ticketStatus   @default(open)
+  category       ticketCategory
+  priority       ticketPriority @default(medium)  // Add a priority for the ticket
+  assignedTo     Int?           // Add an assigned field for support staff
+  assignedAgent  users?         @relation("TicketAssignees", fields: [assignedTo], references: [id])
+  images         String[]       @default([])
+
+  relatedType   String?        // 'product', 'order', 'vendor', etc.
+  relatedId     Int?
+  
+  createdAt      DateTime       @default(now())
+  updated_at     DateTime       @default(now()) @updatedAt
+
+  replies        reply[]        
+}
+
+
+model reply {
+  id           Int         @id @default(autoincrement())  // Unique identifier for each reply
+  ticketId     Int         // The ID of the related ticket
+  ticket       tickets     @relation(fields: [ticketId], references: [id], onDelete: Cascade)  // Correct the reference here to 'tickets'
+  userId       Int
+  users        users       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replyText    String      
+  createdAt    DateTime    @default(now())  // Timestamp when the reply was created
+  updatedAt    DateTime    @default(now()) @updatedAt  // Timestamp for the last update of the reply
+}
+
+
+enum paymentStatus {
+  pending
+  processing
+  paid
+  failed
+  refunded
+  partially_refunded
+  disputed
+  completed
+}
+
+enum transactionType {
+  deposit
+  withdrawal
+  refund
+  fee
+}
+
+model transactions {
+  id             Int   @id @default(autoincrement())
+  
+  vendorId      Int
+  vendor        vendor_profiles @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  customerId    Int?   
+  customer      users?     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  amount      Float
+  currency    String    @default("USD")
+  transaction_id  String 
+
+  transactionType transactionType
+  status        transactionStatus @default(pending)
+
+  metadata    Json? 
+
+  createdAt   DateTime @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+}
+
+model super_admin {
+  id             Int   @id @default(autoincrement())
+  email         String   @unique
+  username      String   @unique
+  password      String
+  createdAt     DateTime @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+}
+
+model settings {
+  id             Int   @id @default(autoincrement())
+  key           String  @unique
+  value         String
+  createdAt     DateTime @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+}
+
+model email_patterns {
+  id             Int   @id @default(autoincrement())
+  name    String @default("")
+  to      String @default("")
+  slug    String @default("")
+  subject String @default("")
+  subjectSp String @default("")
+  html    String @default("")
+  htmlSp    String @default("")
+  createdAt     DateTime @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+}
+
+model email_credentials {
+  id             Int   @id @default(autoincrement())
+  email   String    @unique
+  appPassword String
+  createdAt     DateTime @default(now())
+  updated_at      DateTime          @default(now()) @updatedAt
+}
+
+model visitor {
+  id         Int   @id @default(autoincrement())
+  ip         String
+  city       String?
+  region     String?
+  country    String?
+  latitude   Float?
+  longitude  Float?
+  userAgent  String?
+  referrer   String?
+  page       String?       // page visited
+  device     String?       // mobile, desktop, tablet
+  browser    String?
+  os         String?
+  visitCount Int       @default(1)  // increment on repeat visit
+  lastVisit  DateTime  @default(now())
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+enum discountType {
+  percentage
+  fixed
+}
+
+model coupons {
+  id             Int      @id @default(autoincrement())
+  code           String   @unique
+  description    String?
+  discountType   discountType
+  discountValue  Float
+  minOrderAmount Float?    @default(0.0) // Minimum order to apply coupon
+  maxDiscount    Float?     // Max discount allowed (useful for percentage)
+  startDate      DateTime
+  endDate        DateTime
+  usageLimit     Int?       // Total times coupon can be used
+  usedCount      Int        @default(0)
+  isActive       Boolean    @default(true)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @default(now()) @updatedAt
+}
+
+enum pageStatus {
+  published
+  draft
+  archived
+}
+
+model pages {
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  content         String   @default("")
+  contentSp       String   @default("")
+  metaTitle       String?  @default("")
+  metaDescription String?  @default("")
+  status          pageStatus   @default(published) // can be "draft", "published", "archived"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model VendorCoupon {
+  id             Int             @id @default(autoincrement())
+  code           String          @unique
+  description    String?
+  discountType   discountType
+  discountValue  Float
+  startDate      DateTime
+  endDate        DateTime
+  usageLimit     Int?
+  usedCount      Int             @default(0)
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  // Relations
+  vendorId       Int
+  vendor         vendor_profiles  @relation(fields: [vendorId], references: [id])
+
+  product_id     Int
+  product        products        @relation(fields: [product_id], references: [id])
+}
